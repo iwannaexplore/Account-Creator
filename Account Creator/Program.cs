@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -12,9 +13,11 @@ namespace Account_Creator
     {
         private static void Main(string[] args)
         {
+            Console.WriteLine("Do you want to open it in silent mode - write 'y' or 'n'");
+            var answer = Console.ReadLine();
             Console.WriteLine("Write number of users");
-
-            Dictionary<string, string> credentials = CreateNumOfUsers(uint.Parse(Console.ReadLine()));
+            var numOfUsers = uint.Parse(Console.ReadLine());
+            Dictionary<string, string> credentials = CreateNumOfUsers(numOfUsers, answer);
 
             using StreamWriter writer = new StreamWriter(Environment.CurrentDirectory + "\\credentials.txt", false);
             foreach (var credential in credentials)
@@ -23,27 +26,30 @@ namespace Account_Creator
             }
         }
 
-        private static Dictionary<string, string> CreateNumOfUsers(uint numberOfUsers)
+        private static Dictionary<string, string> CreateNumOfUsers(uint numberOfUsers, string answer)
         {
             var credentials = new Dictionary<string, string>();
             while (credentials.Count != numberOfUsers)
             {
-                var (userName, userPassword) = CreateOneUser();
+                var (userName, userPassword) = CreateOneUser(answer);
                 if (userPassword == "" || userName == "") continue;
 
                 credentials.Add(userName, userPassword);
-                PercentOfWork(credentials.Count, numberOfUsers);
+                PercentOfWork(numberOfUsers, credentials.Count);
             }
 
             return credentials;
         }
 
-        private static (string, string) CreateOneUser()
+        private static (string, string) CreateOneUser(string answer)
         {
             var options = new ChromeOptions();
-            options.AddArgument("--headless");                //if it is ON - browser will not open and will work in silent mode
+            if (answer == "y")
+            {
+                options.AddArgument("--headless");
+            }
             options.AddArgument("--log-level=3");
-            options.SetLoggingPreference("none", LogLevel.All);
+            options.SetLoggingPreference(LogType.Server, LogLevel.All);
             //options.AddArgument($"--proxy-server={proxy}");         //here you can put your proxy like --proxy-server=192.186.154.202:80
 
             IWebDriver _driver = new ChromeDriver(options);
@@ -76,19 +82,15 @@ namespace Account_Creator
                 var accountButtons = _driver.FindElements(By.ClassName("accountButton"));
                 accountButtons[0].Click();
 
-                Thread.Sleep(4000);
+                Thread.Sleep(10000);
+                _driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(10);
+                var asd = _driver.FindElement(By.Id("menuAccountUsername")).Text;
 
-                try
-                {
-                    _driver.FindElement(By.Id("menuWindow"));
-                }
-                catch
-                {
-                    Console.WriteLine("User was not created");
-                    return ("", ""); //if menuWindow doesn't exist - user was not created
-                }
+                if (_driver.FindElement(By.Id("menuAccountUsername")).Text != userName) return ("", "");
 
-                _driver.Quit();
+
+
+                _driver.Close();
 
                 return (userName, userPassword);
             }
@@ -110,9 +112,13 @@ namespace Account_Creator
             return (uname, upassword);
         }
 
-        private static void PercentOfWork(int needed, uint ready)
+        private static void PercentOfWork(uint needed, int ready)
         {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.Clear();
             Console.WriteLine($"Needed: {needed} - Ready:{ready}");
+            Console.WriteLine($"Work is DONE");
+            Console.ForegroundColor = ConsoleColor.White;
         }
     }
 }
