@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using OpenQA.Selenium;
@@ -10,37 +12,54 @@ namespace Account_Creator
     {
         private static void Main(string[] args)
         {
-            
-                //CreateOneUser("139.180.190.74:8080");
-                CreateOneUser("192.186.154.202");
-            
+            Console.WriteLine("Write number of users");
+
+            Dictionary<string, string> credentials = CreateNumOfUsers(uint.Parse(Console.ReadLine()));
+
+            using StreamWriter writer = new StreamWriter(Environment.CurrentDirectory + "\\credentials.txt", false);
+            foreach (var credential in credentials)
+            {
+                writer.WriteLineAsync(@$"{credential.Key} : {credential.Value}");
+            }
         }
 
-        private static (string, string) CreateOneUser(string proxy)
+        private static Dictionary<string, string> CreateNumOfUsers(uint numberOfUsers)
+        {
+            var credentials = new Dictionary<string, string>();
+            while (credentials.Count != numberOfUsers)
+            {
+                var (userName, userPassword) = CreateOneUser();
+                if (userPassword == "" || userName == "") continue;
+
+                credentials.Add(userName, userPassword);
+                PercentOfWork(credentials.Count, numberOfUsers);
+            }
+
+            return credentials;
+        }
+
+        private static (string, string) CreateOneUser()
         {
             var options = new ChromeOptions();
-            ////options.AddArgument("--headless");
-            options.AddArgument("--log-level=OFF");
-            //options.AddArgument($"--proxy-server={proxy}");
-            options.AddArguments("--proxy-server=http://bhzkgypi-1:y7vb0a9oipg4@192.186.154.202:80");
+            options.AddArgument("--headless");                //if it is ON - browser will not open and will work in silent mode
+            options.AddArgument("--log-level=3");
+            options.SetLoggingPreference("none", LogLevel.All);
+            //options.AddArgument($"--proxy-server={proxy}");         //here you can put your proxy like --proxy-server=192.186.154.202:80
 
             IWebDriver _driver = new ChromeDriver(options);
 
-            _driver.SwitchTo();
-
-
-
             _driver.Url = "https://krunker.io";
-            //_driver.Url = "https://2ip.io/";
 
 
             try
             {
                 _driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(5);
+                Thread.Sleep(5);
                 var termsButtons = _driver.FindElements(By.ClassName("termsBtn"));
                 termsButtons[1].Click();
 
                 _driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(5);
+                Thread.Sleep(5);
                 var logButtons = _driver.FindElement(By.CssSelector("div[class='menuItemIcon iconProfile']"));
                 logButtons.Click();
 
@@ -59,7 +78,15 @@ namespace Account_Creator
 
                 Thread.Sleep(4000);
 
-                if (_driver.FindElement(By.Id("accResp")).Text == "Register Error") return ("", "");
+                try
+                {
+                    _driver.FindElement(By.Id("menuWindow"));
+                }
+                catch
+                {
+                    Console.WriteLine("User was not created");
+                    return ("", ""); //if menuWindow doesn't exist - user was not created
+                }
 
                 _driver.Quit();
 
@@ -83,6 +110,9 @@ namespace Account_Creator
             return (uname, upassword);
         }
 
-       
+        private static void PercentOfWork(int needed, uint ready)
+        {
+            Console.WriteLine($"Needed: {needed} - Ready:{ready}");
+        }
     }
 }
